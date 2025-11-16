@@ -11,6 +11,7 @@ interface AuthContextType {
   login: () => void;
   logout: () => void;
   completeFirmSetup: (firmDetails: Firm) => void;
+  updateFirm: (updatedFirmDetails: Partial<Firm>) => void;
   setDeviceLimitReached: (isReached: boolean) => void;
 }
 
@@ -43,8 +44,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setFirmSetupComplete(true);
   };
 
+  const updateFirm = (updatedFirmDetails: Partial<Firm>) => {
+    if (firm) {
+        setFirm({ ...firm, ...updatedFirmDetails });
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, firm, firmSetupComplete, deviceLimitReached, login, logout, completeFirmSetup, setDeviceLimitReached }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, firm, firmSetupComplete, deviceLimitReached, login, logout, completeFirmSetup, updateFirm, setDeviceLimitReached }}>
       {children}
     </AuthContext.Provider>
   );

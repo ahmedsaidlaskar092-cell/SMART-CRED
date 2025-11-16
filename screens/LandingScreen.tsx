@@ -1,16 +1,15 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../components/ui/Logo';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { Track, CreditCard, ShoppingCart, Smartphone } from 'lucide-react';
+import { PackagePlus, History, ShoppingCart, Smartphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const highlightCards = [
-    { icon: CreditCard, text: "Track credit & reminders" },
+    { icon: History, text: "Track credit & reminders" },
     { icon: ShoppingCart, text: "GST-ready sales & purchases" },
-    { icon: Track, text: "Single & bulk product add" },
+    { icon: PackagePlus, text: "Single & bulk product add" },
     { icon: Smartphone, text: "Multi-device owner access" }
 ];
 

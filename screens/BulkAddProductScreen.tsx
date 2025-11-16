@@ -1,9 +1,11 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
 import Button from '../components/ui/Button';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
+import { Product } from '../types';
 
 interface ProductRow {
   id: number;
@@ -17,10 +19,15 @@ interface ProductRow {
 
 const BulkAddProductScreen: React.FC = () => {
   const navigate = useNavigate();
-  const [rows, setRows] = useState<ProductRow[]>([{ id: 1, name: '', buyPrice: '', buyGst: '', sellPrice: '', sellGst: '', stock: '' }]);
+  const { addBulkProducts } = useData();
+  const { firm } = useAuth();
+  
+  const defaultGst = firm?.default_gst?.toString() || '';
+
+  const [rows, setRows] = useState<ProductRow[]>([{ id: 1, name: '', buyPrice: '', buyGst: defaultGst, sellPrice: '', sellGst: defaultGst, stock: '0' }]);
 
   const addRow = () => {
-    setRows([...rows, { id: Date.now(), name: '', buyPrice: '', buyGst: '', sellPrice: '', sellGst: '', stock: '' }]);
+    setRows([...rows, { id: Date.now(), name: '', buyPrice: '', buyGst: defaultGst, sellPrice: '', sellGst: defaultGst, stock: '0' }]);
   };
 
   const removeRow = (id: number) => {
@@ -31,6 +38,27 @@ const BulkAddProductScreen: React.FC = () => {
   
   const handleInputChange = (id: number, field: keyof Omit<ProductRow, 'id'>, value: string) => {
       setRows(rows.map(row => row.id === id ? {...row, [field]: value} : row));
+  };
+  
+  const handleSave = () => {
+      const newProducts: Omit<Product, 'id' | 'firm_id'>[] = rows
+        .filter(row => row.name.trim() !== '')
+        .map(row => ({
+            name: row.name,
+            buy_price: parseFloat(row.buyPrice) || 0,
+            buy_gst: parseFloat(row.buyGst) || 0,
+            sell_price: parseFloat(row.sellPrice) || 0,
+            sell_gst: parseFloat(row.sellGst) || 0,
+            stock: parseInt(row.stock) || 0,
+            is_active: true
+        }));
+
+      if(newProducts.length > 0) {
+          addBulkProducts(newProducts);
+          navigate('/products');
+      } else {
+          alert("Please fill in at least one product name.");
+      }
   };
 
   return (
@@ -72,7 +100,7 @@ const BulkAddProductScreen: React.FC = () => {
         <Button onClick={addRow} variant="secondary" className="flex-1 flex items-center justify-center">
             <Plus size={20} className="mr-2"/> Add Row
         </Button>
-        <Button className="flex-1">Save All Products</Button>
+        <Button onClick={handleSave} className="flex-1">Save All Products</Button>
       </div>
     </PageWrapper>
   );

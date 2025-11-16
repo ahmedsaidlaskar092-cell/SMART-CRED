@@ -1,21 +1,43 @@
-
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { ArrowLeft } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const AddProductScreen: React.FC = () => {
     const navigate = useNavigate();
-    const [buyPrice, setBuyPrice] = useState(0);
-    const [buyGst, setBuyGst] = useState(0);
-    const [sellPrice, setSellPrice] = useState(0);
-    const [sellGst, setSellGst] = useState(0);
+    const { addProduct } = useData();
+    const { firm } = useAuth();
+
+    const [name, setName] = useState('');
+    const [buyPrice, setBuyPrice] = useState('');
+    const [buyGst, setBuyGst] = useState(firm?.default_gst?.toString() || '');
+    const [sellPrice, setSellPrice] = useState('');
+    const [sellGst, setSellGst] = useState(firm?.default_gst?.toString() || '');
+    const [stock, setStock] = useState('0');
+    const [category, setCategory] = useState('');
     const [isActive, setIsActive] = useState(true);
     
-    const finalBuyPrice = useMemo(() => buyPrice * (1 + buyGst / 100), [buyPrice, buyGst]);
-    const finalSellPrice = useMemo(() => sellPrice * (1 + sellGst / 100), [sellPrice, sellGst]);
+    const finalBuyPrice = useMemo(() => (parseFloat(buyPrice) || 0) * (1 + (parseFloat(buyGst) || 0) / 100), [buyPrice, buyGst]);
+    const finalSellPrice = useMemo(() => (parseFloat(sellPrice) || 0) * (1 + (parseFloat(sellGst) || 0) / 100), [sellPrice, sellGst]);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        addProduct({
+            name,
+            buy_price: parseFloat(buyPrice) || 0,
+            buy_gst: parseFloat(buyGst) || 0,
+            sell_price: parseFloat(sellPrice) || 0,
+            sell_gst: parseFloat(sellGst) || 0,
+            stock: parseInt(stock) || 0,
+            category,
+            is_active: isActive
+        });
+        navigate('/products');
+    };
 
     return (
         <PageWrapper>
@@ -24,23 +46,23 @@ const AddProductScreen: React.FC = () => {
                 <h1 className="text-2xl font-bold font-poppins text-text-primary">Add Product</h1>
             </header>
 
-            <form className="space-y-4 flex-grow flex flex-col">
-                <Input label="Product Name" id="name" type="text" required />
+            <form onSubmit={handleSubmit} className="space-y-4 flex-grow flex flex-col">
+                <Input label="Product Name" id="name" type="text" value={name} onChange={e => setName(e.target.value)} required />
                 
                 <div className="grid grid-cols-2 gap-4">
-                    <Input label="Buying Price (no GST)" id="buy_price" type="number" onChange={e => setBuyPrice(parseFloat(e.target.value) || 0)} />
-                    <Input label="Buy GST %" id="buy_gst" type="number" onChange={e => setBuyGst(parseFloat(e.target.value) || 0)} />
+                    <Input label="Buying Price (no GST)" id="buy_price" type="number" value={buyPrice} onChange={e => setBuyPrice(e.target.value)} />
+                    <Input label="Buy GST %" id="buy_gst" type="number" value={buyGst} onChange={e => setBuyGst(e.target.value)} />
                 </div>
                 <p className="text-sm text-text-secondary -mt-2">Final Buy Price (with GST): <span className="font-bold text-text-primary">₹{finalBuyPrice.toFixed(2)}</span></p>
 
                 <div className="grid grid-cols-2 gap-4">
-                    <Input label="Selling Price (no GST)" id="sell_price" type="number" onChange={e => setSellPrice(parseFloat(e.target.value) || 0)} />
-                    <Input label="Sell GST %" id="sell_gst" type="number" onChange={e => setSellGst(parseFloat(e.target.value) || 0)} />
+                    <Input label="Selling Price (no GST)" id="sell_price" type="number" value={sellPrice} onChange={e => setSellPrice(e.target.value)} />
+                    <Input label="Sell GST %" id="sell_gst" type="number" value={sellGst} onChange={e => setSellGst(e.target.value)} />
                 </div>
                 <p className="text-sm text-text-secondary -mt-2">Final Sell Price (with GST): <span className="font-bold text-text-primary">₹{finalSellPrice.toFixed(2)}</span></p>
                 
-                <Input label="Stock Quantity" id="stock" type="number" defaultValue={0} />
-                <Input label="Category (optional)" id="category" type="text" />
+                <Input label="Stock Quantity" id="stock" type="number" value={stock} onChange={e => setStock(e.target.value)} />
+                <Input label="Category (optional)" id="category" type="text" value={category} onChange={e => setCategory(e.target.value)} />
                 
                 <div className="flex justify-between items-center bg-card p-3 rounded-lg">
                     <label htmlFor="is_active" className="font-medium text-text-primary">Product Active</label>

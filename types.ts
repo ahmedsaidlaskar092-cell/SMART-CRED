@@ -9,6 +9,7 @@ export interface Firm {
   phone?: string;
   gstin?: string;
   tagline?: string;
+  default_gst?: number;
 }
 
 export interface User {
@@ -42,15 +43,23 @@ export interface Product {
   is_active: boolean;
 }
 
+export interface Payment {
+    method: 'Cash' | 'UPI' | 'Card' | 'Credit Sale';
+    amount: number;
+}
+
 export interface Sale {
     id: number;
     firm_id: number;
+    bill_no: string;
+    customer_id?: number;
     product_id: number;
     qty: number;
     sell_price: number;
     sell_gst: number;
+    discount: number;
     total_amount: number;
-    payment_type: 'Cash' | 'UPI' | 'Card' | 'Credit Sale';
+    payments: Payment[];
     date_time: string;
 }
 
@@ -70,6 +79,7 @@ export interface CreditEntry {
     id: number;
     firm_id: number;
     customer_id: number;
+    sale_id?: number;
     product_id?: number;
     productName?: string;
     amount: number;

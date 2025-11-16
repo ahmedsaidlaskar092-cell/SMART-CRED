@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Input from '../components/ui/Input';
@@ -10,7 +9,7 @@ const FirmSetupScreen: React.FC = () => {
   const { completeFirmSetup } = useAuth();
   const [firmDetails, setFirmDetails] = useState<Partial<Firm>>({});
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFirmDetails({ ...firmDetails, [e.target.name]: e.target.value });
   };
 
@@ -20,6 +19,11 @@ const FirmSetupScreen: React.FC = () => {
       id: 1,
       name: firmDetails.name || "My Business",
       owner_name: firmDetails.owner_name || "Owner",
+      address: firmDetails.address,
+      phone: firmDetails.phone,
+      gstin: firmDetails.gstin,
+      tagline: firmDetails.tagline,
+      default_gst: firmDetails.default_gst ? Number(firmDetails.default_gst) : undefined,
     };
     completeFirmSetup(newFirm);
   };
@@ -50,6 +54,23 @@ const FirmSetupScreen: React.FC = () => {
           <Input label="Phone / WhatsApp" id="phone" name="phone" type="tel" onChange={handleChange} />
           <Input label="GSTIN" id="gstin" name="gstin" type="text" onChange={handleChange} />
           <Input label="Tagline (optional)" id="tagline" name="tagline" type="text" onChange={handleChange} />
+
+          <div>
+            <label htmlFor="default_gst" className="block text-sm font-medium text-text-secondary mb-1">Default GST Rate % (Optional)</label>
+            <select
+                id="default_gst"
+                name="default_gst"
+                onChange={handleChange}
+                className="w-full bg-card border border-gray-600 text-text-primary rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+            >
+                <option value="">Not Set</option>
+                <option value="0">0%</option>
+                <option value="5">5%</option>
+                <option value="12">12%</option>
+                <option value="18">18%</option>
+                <option value="28">28%</option>
+            </select>
+          </div>
 
           <div className="pt-4">
             <Button type="submit">Save & Continue</Button>

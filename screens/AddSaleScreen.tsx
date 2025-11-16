@@ -1,19 +1,102 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
 import Button from '../components/ui/Button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import Input from '../components/ui/Input';
+import { useData } from '../contexts/DataContext';
+import { Product, Customer, Payment } from '../types';
 
 const AddSaleScreen: React.FC = () => {
     const navigate = useNavigate();
-    const [quantity, setQuantity] = useState(1);
-    const unitPrice = 150; // Mocked
-    const gstPercent = 18; // Mocked
+    const { products, customers, addSale } = useData();
 
-    const gstAmount = useMemo(() => unitPrice * quantity * (gstPercent / 100), [quantity, unitPrice, gstPercent]);
-    const totalAmount = useMemo(() => unitPrice * quantity + gstAmount, [quantity, unitPrice, gstAmount]);
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [productSearch, setProductSearch] = useState('');
+    const [isProductListOpen, setIsProductListOpen] = useState(false);
+    
+    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+    const [customerSearch, setCustomerSearch] = useState('');
+    const [isCustomerListOpen, setIsCustomerListOpen] = useState(false);
+
+    const [quantity, setQuantity] = useState(1);
+    const [discount, setDiscount] = useState(0);
+
+    const [payments, setPayments] = useState<{id: number, method: 'Cash' | 'UPI' | 'Card', amount: number}[]>([{ id: Date.now(), method: 'Cash', amount: 0}]);
+    
+    const filteredProducts = useMemo(() => 
+        products.filter(p => p.is_active && p.name.toLowerCase().includes(productSearch.toLowerCase())),
+    [products, productSearch]);
+    
+    const filteredCustomers = useMemo(() => 
+        customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase())), 
+    [customers, customerSearch]);
+
+    const unitPrice = selectedProduct?.sell_price || 0;
+    const gstPercent = selectedProduct?.sell_gst || 0;
+    const priceBeforeGst = unitPrice * quantity;
+    const gstAmount = priceBeforeGst * (gstPercent / 100);
+    const totalAmount = priceBeforeGst + gstAmount;
+    const finalPayable = totalAmount - discount;
+    const totalPaid = useMemo(() => payments.reduce((acc, p) => acc + Number(p.amount || 0), 0), [payments]);
+    const balanceDue = useMemo(() => finalPayable - totalPaid, [finalPayable, totalPaid]);
+
+    useEffect(() => {
+        if (payments.length === 1) {
+            setPayments([{ ...payments[0], amount: finalPayable > 0 ? finalPayable : 0 }]);
+        }
+    }, [finalPayable]);
+
+    const handlePaymentChange = (id: number, field: 'method' | 'amount', value: any) => {
+        setPayments(prev => prev.map(p => p.id === id ? {...p, [field]: value} : p));
+    };
+
+    const addPaymentRow = () => {
+        setPayments(prev => [...prev, {id: Date.now(), method: 'Cash', amount: 0}]);
+    };
+
+    const removePaymentRow = (id: number) => {
+        if(payments.length > 1) {
+            setPayments(prev => prev.filter(p => p.id !== id));
+        }
+    };
+    
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedProduct) {
+            alert('Please select a product.');
+            return;
+        }
+        if (quantity > selectedProduct.stock) {
+            alert(`Not enough stock. Only ${selectedProduct.stock} available.`);
+            return;
+        }
+        if (balanceDue > 0 && !selectedCustomer) {
+            alert('Please select a customer to create a credit sale for the balance amount.');
+            return;
+        }
+        
+        let finalPayments: Payment[] = payments.map(p => ({method: p.method, amount: Number(p.amount || 0)}));
+        if(balanceDue > 0 && selectedCustomer) {
+            finalPayments.push({ method: 'Credit Sale', amount: balanceDue });
+        }
+
+        const newSaleId = addSale({
+            product_id: selectedProduct.id,
+            customer_id: selectedCustomer?.id,
+            qty: quantity,
+            sell_price: selectedProduct.sell_price,
+            sell_gst: selectedProduct.sell_gst,
+            discount: discount,
+            payments: finalPayments,
+        });
+        
+        if(newSaleId) {
+            navigate(`/bill/${newSaleId}`);
+        } else {
+            alert("Failed to create sale.");
+        }
+    };
 
     return (
         <PageWrapper>
@@ -22,34 +105,79 @@ const AddSaleScreen: React.FC = () => {
                 <h1 className="text-2xl font-bold font-poppins text-text-primary">New Sale</h1>
             </header>
             
-            <form className="space-y-4 flex-grow flex flex-col">
-                <Input label="Product" id="product" type="text" placeholder="Search product..."/>
-                <Input label="Quantity" id="quantity" type="number" value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 1)} />
+            <form onSubmit={handleSubmit} className="space-y-4 flex-grow flex flex-col">
+                <div className="relative">
+                    <Input label="Customer (optional)" id="customer" type="text" placeholder="Search customer..." 
+                        value={selectedCustomer ? selectedCustomer.name : customerSearch}
+                        onChange={e => { setSelectedCustomer(null); setCustomerSearch(e.target.value); }}
+                        onFocus={() => setIsCustomerListOpen(true)}
+                        onBlur={() => setTimeout(() => setIsCustomerListOpen(false), 200)}
+                    />
+                    {isCustomerListOpen && filteredCustomers.length > 0 && (
+                        <div className="absolute z-20 w-full mt-1 bg-card border border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {filteredCustomers.map(c => (
+                                <div key={c.id} className="p-3 hover:bg-accent cursor-pointer" onClick={() => { setSelectedCustomer(c); setCustomerSearch(c.name); setIsCustomerListOpen(false); }}>
+                                    {c.name}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
+                <div className="relative">
+                    <Input label="Product" id="product" type="text" placeholder="Search product..." 
+                        value={selectedProduct ? selectedProduct.name : productSearch}
+                        onChange={e => { setSelectedProduct(null); setProductSearch(e.target.value); }}
+                        onFocus={() => setIsProductListOpen(true)}
+                        onBlur={() => setTimeout(() => setIsProductListOpen(false), 200)}
+                        required
+                    />
+                    {isProductListOpen && filteredProducts.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-card border border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {filteredProducts.map(p => (
+                                <div key={p.id} className="p-3 hover:bg-accent cursor-pointer" onClick={() => { setSelectedProduct(p); setProductSearch(p.name); setIsProductListOpen(false); }}>
+                                    {p.name} <span className="text-sm text-text-secondary">(Stock: {p.stock})</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <Input label="Quantity" id="quantity" type="number" min="1" value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 1)} />
+                    <Input label="Discount (₹)" id="discount" type="number" min="0" value={discount} onChange={e => setDiscount(parseFloat(e.target.value) || 0)} />
+                </div>
+                
                 <div className="bg-card p-4 rounded-lg space-y-2">
-                    <div className="flex justify-between text-sm"><span className="text-text-secondary">Unit Price (excl. GST)</span> <span>₹{unitPrice.toFixed(2)}</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-text-secondary">GST %</span> <span>{gstPercent}%</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-text-secondary">GST Amount</span> <span>₹{gstAmount.toFixed(2)}</span></div>
-                    <hr className="border-gray-600 my-2" />
-                    <div className="flex justify-between font-bold text-lg"><span className="text-text-primary">Total</span> <span className="text-primary">₹{totalAmount.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-text-secondary">Amount (excl. GST)</span> <span>₹{priceBeforeGst.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-text-secondary">GST ({gstPercent}%)</span> <span>₹{gstAmount.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-text-secondary">Discount</span> <span className="text-red-500">- ₹{discount.toFixed(2)}</span></div>
+                    <hr className="border-gray-600/50 my-2" />
+                    <div className="flex justify-between font-bold text-lg"><span className="text-text-primary">Total Payable</span> <span className="text-primary">₹{finalPayable.toFixed(2)}</span></div>
                 </div>
 
                 <div>
-                    <label htmlFor="payment_type" className="block text-sm font-medium text-text-secondary mb-1">Payment Type</label>
-                    <select id="payment_type" className="w-full bg-card border border-gray-600 text-text-primary rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
-                        <option>Cash</option>
-                        <option>UPI</option>
-                        <option>Card</option>
-                        <option>Credit Sale</option>
-                    </select>
+                    <h3 className="text-lg font-semibold text-text-primary mb-2">Payment Details</h3>
+                    <div className="space-y-2">
+                        {payments.map(p => (
+                            <div key={p.id} className="flex gap-2 items-center">
+                                <select value={p.method} onChange={e => handlePaymentChange(p.id, 'method', e.target.value)} className="flex-1 bg-card border border-gray-600 text-text-primary rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
+                                    <option>Cash</option>
+                                    <option>UPI</option>
+                                    <option>Card</option>
+                                </select>
+                                <input type="number" value={p.amount} onChange={e => handlePaymentChange(p.id, 'amount', parseFloat(e.target.value) || 0)} className="flex-1 w-24 bg-card border border-gray-600 text-text-primary rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none" placeholder="Amount"/>
+                                <button type="button" onClick={() => removePaymentRow(p.id)} className="p-3 text-red-500 hover:bg-red-500/10 rounded-lg"><Trash2 size={20}/></button>
+                            </div>
+                        ))}
+                    </div>
+                    <Button type="button" variant="secondary" onClick={addPaymentRow} className="w-auto px-4 py-2 mt-2 text-sm flex items-center"><Plus size={16} className="mr-1"/> Add Payment</Button>
+                    <div className="flex justify-between font-semibold mt-2 text-md"><span className="text-text-secondary">Total Paid:</span> <span className="text-green-500">₹{totalPaid.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-bold mt-1 text-md"><span className="text-text-secondary">Balance Due:</span> <span className="text-red-500">₹{balanceDue.toFixed(2)}</span></div>
                 </div>
-                 <div>
-                    <label htmlFor="notes" className="block text-sm font-medium text-text-secondary mb-1">Notes (optional)</label>
-                    <textarea id="notes" rows={3} className="w-full bg-card border border-gray-600 text-text-primary rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none" />
-                </div>
-
+                
                 <div className="mt-auto pt-4">
-                    <Button type="submit">SAVE</Button>
+                    <Button type="submit" disabled={!selectedProduct || quantity <= 0 || finalPayable < 0}>SAVE & GENERATE BILL</Button>
                 </div>
             </form>
         </PageWrapper>
