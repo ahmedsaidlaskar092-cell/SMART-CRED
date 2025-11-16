@@ -1,0 +1,83 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simple GST Business Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      .font-poppins {
+        font-family: 'Poppins', sans-serif;
+      }
+      /* Theme CSS Variables */
+      :root.theme-blue {
+        --primary: 19, 110, 222; /* #1E88E5 */
+        --background: 255, 255, 255;
+        --card: 245, 245, 245;
+        --text-primary: 31, 41, 51;
+        --text-secondary: 107, 114, 128;
+        --accent: 219, 234, 254;
+      }
+      :root.theme-green {
+        --primary: 46, 204, 113; /* #2ECC71 */
+        --background: 255, 255, 255;
+        --card: 243, 243, 243;
+        --text-primary: 31, 41, 51;
+        --text-secondary: 107, 114, 128;
+        --accent: 168, 230, 207;
+      }
+      :root.theme-purple {
+        --primary: 142, 68, 173; /* #8E44AD */
+        --background: 255, 255, 255;
+        --card: 242, 242, 242;
+        --text-primary: 31, 41, 51;
+        --text-secondary: 107, 114, 128;
+        --accent: 215, 189, 226;
+      }
+      :root.theme-dark {
+        --primary: 0, 195, 255; /* #00C3FF */
+        --background: 10, 10, 10;
+        --card: 28, 28, 28;
+        --text-primary: 255, 255, 255;
+        --text-secondary: 156, 163, 175;
+        --accent: 0, 195, 255;
+      }
+      .bg-primary { background-color: rgb(var(--primary)); }
+      .text-primary { color: rgb(var(--primary)); }
+      .border-primary { border-color: rgb(var(--primary)); }
+      .ring-primary { ring-color: rgb(var(--primary)); }
+      .bg-background { background-color: rgb(var(--background)); }
+      .text-text-primary { color: rgb(var(--text-primary)); }
+      .text-text-secondary { color: rgb(var(--text-secondary)); }
+      .bg-card { background-color: rgb(var(--card)); }
+      .border-card { border-color: rgb(var(--card)); }
+      .bg-accent { background-color: rgb(var(--accent)); }
+      .text-accent { color: rgb(var(--accent)); }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6",
+    "framer-motion": "https://aistudiocdn.com/framer-motion@^12.23.24",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.553.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1"
+  }
+}
+</script>
+</head>
+  <body class="bg-background">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,5 @@
+{
+  "name": "Simple GST Business Tracker",
+  "description": "A comprehensive mobile-first app to track credit, purchases, and sales for businesses, with GST support, multi-device access, and a powerful owner dashboard. Includes Gemini-powered business insights.",
+  "requestFramePermissions": []
+}
