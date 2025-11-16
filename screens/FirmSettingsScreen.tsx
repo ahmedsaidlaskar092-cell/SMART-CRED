@@ -9,7 +9,7 @@ import { Firm } from '../types';
 
 const FirmSettingsScreen: React.FC = () => {
   const navigate = useNavigate();
-  const { firm, updateFirm } = useAuth();
+  const { firm, firmSetupComplete, completeFirmSetup, updateFirm } = useAuth();
   const [firmDetails, setFirmDetails] = useState<Partial<Firm>>(firm || {});
   const [isSaved, setIsSaved] = useState(false);
 
@@ -19,11 +19,33 @@ const FirmSettingsScreen: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const updatedDetails = {
+
+    if (!firmDetails.name || !firmDetails.owner_name) {
+        alert("Firm Name and Owner Name are required.");
+        return;
+    }
+
+    const detailsToSave = {
         ...firmDetails,
         default_gst: firmDetails.default_gst ? Number(firmDetails.default_gst) : undefined,
     };
-    updateFirm(updatedDetails);
+
+    if (!firmSetupComplete) {
+        const newFirm: Firm = {
+            id: Date.now(),
+            name: detailsToSave.name,
+            owner_name: detailsToSave.owner_name,
+            address: detailsToSave.address,
+            phone: detailsToSave.phone,
+            gstin: detailsToSave.gstin,
+            tagline: detailsToSave.tagline,
+            default_gst: detailsToSave.default_gst,
+        };
+        completeFirmSetup(newFirm);
+    } else {
+        updateFirm(detailsToSave);
+    }
+    
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
   };
@@ -34,6 +56,9 @@ const FirmSettingsScreen: React.FC = () => {
           <button onClick={() => navigate(-1)} className="mr-4 p-2 rounded-full hover:bg-card"><ArrowLeft /></button>
           <h1 className="text-2xl font-bold font-poppins text-text-primary">Firm Settings</h1>
       </header>
+      <p className="text-text-secondary mb-6 -mt-4">
+        {firmSetupComplete ? 'Edit your business details.' : 'Set up your business details to start generating bills.'}
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input label="Firm Name" id="name" name="name" type="text" value={firmDetails.name || ''} onChange={handleChange} required />

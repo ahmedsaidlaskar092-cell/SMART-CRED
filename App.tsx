@@ -8,7 +8,6 @@ import SplashScreen from './components/SplashScreen';
 import LandingScreen from './screens/LandingScreen';
 import LoginScreen from './screens/LoginScreen';
 import SignUpScreen from './screens/SignUpScreen';
-import FirmSetupScreen from './screens/FirmSetupScreen';
 import DeviceLimitScreen from './screens/DeviceLimitScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import CustomersScreen from './screens/CustomersScreen';
@@ -42,7 +41,7 @@ const App: React.FC = () => {
 
 const AppContent: React.FC = () => {
     const { theme } = React.useContext(ThemeContext);
-    const { isAuthenticated, firmSetupComplete, deviceLimitReached } = useAuth();
+    const { isAuthenticated, deviceLimitReached } = useAuth();
     const [appLoading, setAppLoading] = useState(true);
 
     useEffect(() => {
@@ -74,11 +73,6 @@ const AppContent: React.FC = () => {
                     ) : deviceLimitReached ? (
                         <>
                             <Route path="/" element={<DeviceLimitScreen />} />
-                            <Route path="*" element={<Navigate to="/" />} />
-                        </>
-                    ) : !firmSetupComplete ? (
-                        <>
-                            <Route path="/" element={<FirmSetupScreen />} />
                             <Route path="*" element={<Navigate to="/" />} />
                         </>
                     ) : (

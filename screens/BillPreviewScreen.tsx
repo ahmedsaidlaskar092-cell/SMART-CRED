@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Sale, Customer, Product, Firm } from '../types';
+import { Sale, Customer, Product } from '../types';
 import PageWrapper from '../components/layout/PageWrapper';
 import Button from '../components/ui/Button';
-import { ArrowLeft, Printer, Share2, Download } from 'lucide-react';
+import { ArrowLeft, Printer, Share2, Download, Building } from 'lucide-react';
 
 declare global {
     interface Window {
@@ -18,7 +18,7 @@ const BillPreviewScreen: React.FC = () => {
     const { saleId } = useParams();
     const navigate = useNavigate();
     const { getSaleById, getCustomerById, getProductById } = useData();
-    const { firm } = useAuth();
+    const { firm, firmSetupComplete } = useAuth();
     
     const [sale, setSale] = useState<Sale | null>(null);
     const [customer, setCustomer] = useState<Customer | null>(null);
@@ -106,7 +106,24 @@ Payment(s): ${sale.payments.map(p => `${p.method}: ₹${p.amount.toFixed(2)}`).j
         window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank');
     };
 
-    if (!sale || !product || !firm) {
+    if (!firm || !firmSetupComplete) {
+        return (
+            <PageWrapper>
+                <div className="text-center mt-20 flex flex-col items-center">
+                    <Building size={48} className="text-primary mb-4" />
+                    <h1 className="text-2xl font-bold font-poppins mb-2">Firm Details Not Set Up</h1>
+                    <p className="text-text-secondary mb-6 max-w-sm">
+                        Please provide your firm's details in the settings to generate and view bills.
+                    </p>
+                    <Button onClick={() => navigate('/settings/firm')} className="w-auto px-6">
+                        Go to Firm Settings
+                    </Button>
+                </div>
+            </PageWrapper>
+        );
+    }
+
+    if (!sale || !product) {
         return <PageWrapper><div className="text-center mt-10">Loading Bill...</div></PageWrapper>;
     }
     
