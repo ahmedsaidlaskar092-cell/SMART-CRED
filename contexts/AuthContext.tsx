@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import { User, Firm } from '../types';
 
@@ -42,11 +41,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const completeFirmSetup = (firmDetails: Firm) => {
     setFirm(firmDetails);
     setFirmSetupComplete(true);
+    // Sync the user's full name with the firm's owner name for consistency
+    if (user) {
+        setUser(prevUser => ({...prevUser!, full_name: firmDetails.owner_name}));
+    }
   };
 
   const updateFirm = (updatedFirmDetails: Partial<Firm>) => {
     if (firm) {
-        setFirm({ ...firm, ...updatedFirmDetails });
+        const newFirm = { ...firm, ...updatedFirmDetails };
+        setFirm(newFirm);
+        // Also update the user's name if the owner name changes
+        if (updatedFirmDetails.owner_name && user) {
+            setUser(prevUser => ({...prevUser!, full_name: updatedFirmDetails.owner_name!}));
+        }
     }
   };
 
