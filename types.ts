@@ -56,6 +56,7 @@ export interface Sale {
     product_id: number;
     qty: number;
     sell_price: number;
+    buy_price_at_sale: number;
     sell_gst: number;
     discount: number;
     total_amount: number;
@@ -87,4 +88,10 @@ export interface CreditEntry {
     due_date: string;
     date_time: string;
     status: 'PENDING' | 'PAID';
+}
+
+export interface Device {
+  id: string;
+  name: string;
+  lastLogin: string;
 }

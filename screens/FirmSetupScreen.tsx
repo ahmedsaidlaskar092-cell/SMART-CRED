@@ -4,9 +4,12 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { motion } from 'framer-motion';
 import { Firm } from '../types';
+import { useNavigate } from 'react-router-dom';
 
 const FirmSetupScreen: React.FC = () => {
-  const { completeFirmSetup } = useAuth();
+  // FIX: Use updateFirm from AuthContext as completeFirmSetup does not exist.
+  const { updateFirm } = useAuth();
+  const navigate = useNavigate();
   const [firmDetails, setFirmDetails] = useState<Partial<Firm>>({});
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -15,8 +18,8 @@ const FirmSetupScreen: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newFirm: Firm = {
-      id: 1,
+    // FIX: Call updateFirm with the details from the form and navigate to the home page.
+    const detailsToSave: Partial<Firm> = {
       name: firmDetails.name || "My Business",
       owner_name: firmDetails.owner_name || "Owner",
       address: firmDetails.address,
@@ -25,7 +28,8 @@ const FirmSetupScreen: React.FC = () => {
       tagline: firmDetails.tagline,
       default_gst: firmDetails.default_gst ? Number(firmDetails.default_gst) : undefined,
     };
-    completeFirmSetup(newFirm);
+    updateFirm(detailsToSave);
+    navigate('/');
   };
 
   return (

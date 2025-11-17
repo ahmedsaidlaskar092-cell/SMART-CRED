@@ -6,7 +6,7 @@ import { Smartphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const DeviceLimitScreen: React.FC = () => {
-  const { setDeviceLimitReached } = useAuth();
+  const { logout } = useAuth();
 
   return (
     <motion.div
@@ -18,9 +18,9 @@ const DeviceLimitScreen: React.FC = () => {
             <Smartphone className="w-16 h-16 mx-auto text-primary mb-4" />
             <h1 className="text-2xl font-bold font-poppins text-text-primary mb-2">Device Limit Reached</h1>
             <p className="text-text-secondary mb-8">
-                You can use this firm account on up to 3 devices. Please remove a device from Settings → Device Manager to continue.
+                You can use this firm account on up to 3 devices. Please log out and remove a device from another logged-in session via Settings → Device Manager to continue.
             </p>
-            <Button onClick={() => setDeviceLimitReached(false)}>OK</Button>
+            <Button onClick={logout}>Logout</Button>
         </div>
     </motion.div>
   );

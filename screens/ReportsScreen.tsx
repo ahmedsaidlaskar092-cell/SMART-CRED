@@ -1,14 +1,14 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
-import BottomNav from '../components/layout/BottomNav';
 import { useData } from '../contexts/DataContext';
 import { exportToCsv } from '../utils/export';
 import { ChevronRight, FileOutput, FileArchive, UsersRound } from 'lucide-react';
 
 const ReportsScreen: React.FC = () => {
     const navigate = useNavigate();
-    const { sales, purchases, customers, getProductById, getCustomerById } = useData();
+    const { sales, purchases, customers, products, getProductById, getCustomerById } = useData();
 
     const handleExportSales = () => {
         const dataToExport = sales.map(s => {
@@ -50,63 +50,88 @@ const ReportsScreen: React.FC = () => {
         exportToCsv('customers_export.csv', customers);
     };
 
-    return (
-        <>
-            <PageWrapper>
-                <h1 className="text-3xl font-bold font-poppins text-text-primary mb-6">Reports</h1>
-                
-                <div className="mb-8">
-                    <h2 className="text-xl font-bold text-text-primary mb-3">Data Management</h2>
-                    <div className="space-y-2">
-                        <button
-                            onClick={() => navigate('/sales')}
-                            className="w-full flex items-center justify-between p-4 bg-card rounded-lg text-left transition-colors hover:bg-gray-500/10"
-                        >
-                            <div className="flex items-center">
-                                <FileArchive className="mr-4 text-primary" size={24} />
-                                <span className="font-semibold text-text-primary">View All Sales</span>
-                            </div>
-                            <ChevronRight className="text-text-secondary" />
-                        </button>
-                    </div>
-                </div>
-                
-                <div>
-                    <h2 className="text-xl font-bold text-text-primary mb-3">Data Export</h2>
-                    <div className="space-y-2">
-                         <button
-                            onClick={handleExportSales}
-                            className="w-full flex items-center justify-between p-4 bg-card rounded-lg text-left transition-colors hover:bg-gray-500/10"
-                        >
-                            <div className="flex items-center">
-                                <FileOutput className="mr-4 text-primary" size={24} />
-                                <span className="font-semibold text-text-primary">Export Sales to CSV</span>
-                            </div>
-                        </button>
-                         <button
-                            onClick={handleExportPurchases}
-                            className="w-full flex items-center justify-between p-4 bg-card rounded-lg text-left transition-colors hover:bg-gray-500/10"
-                        >
-                            <div className="flex items-center">
-                                <FileOutput className="mr-4 text-primary" size={24} />
-                                <span className="font-semibold text-text-primary">Export Purchases to CSV</span>
-                            </div>
-                        </button>
-                         <button
-                            onClick={handleExportCustomers}
-                            className="w-full flex items-center justify-between p-4 bg-card rounded-lg text-left transition-colors hover:bg-gray-500/10"
-                        >
-                            <div className="flex items-center">
-                                <UsersRound className="mr-4 text-primary" size={24} />
-                                <span className="font-semibold text-text-primary">Export Customers to CSV</span>
-                            </div>
-                        </button>
-                    </div>
-                </div>
+    const handleExportProducts = () => {
+        const dataToExport = products.map(p => {
+            const finalSell = p.sell_price * (1 + p.sell_gst / 100);
+            return {
+                ID: p.id,
+                Name: p.name,
+                Stock: p.stock,
+                Category: p.category || 'N/A',
+                'Buy Price (excl. GST)': p.buy_price,
+                'Buy GST %': p.buy_gst,
+                'Sell Price (excl. GST)': p.sell_price,
+                'Sell GST %': p.sell_gst,
+                'Final Sell Price': finalSell.toFixed(2),
+                Status: p.is_active ? 'Active' : 'Inactive',
+            };
+        });
+        exportToCsv('products_export.csv', dataToExport);
+    };
 
-            </PageWrapper>
-            <BottomNav />
-        </>
+    return (
+        <PageWrapper>
+            <h1 className="text-3xl font-bold font-poppins text-text-primary mb-6">Reports</h1>
+            
+            <div className="mb-8">
+                <h2 className="text-xl font-bold text-text-primary mb-3">Data Management</h2>
+                <div className="space-y-2">
+                    <button
+                        onClick={() => navigate('/sales')}
+                        className="w-full flex items-center justify-between p-4 bg-card rounded-lg text-left transition-colors hover:bg-gray-500/10"
+                    >
+                        <div className="flex items-center">
+                            <FileArchive className="mr-4 text-primary" size={24} />
+                            <span className="font-semibold text-text-primary">View All Sales</span>
+                        </div>
+                        <ChevronRight className="text-text-secondary" />
+                    </button>
+                </div>
+            </div>
+            
+            <div>
+                <h2 className="text-xl font-bold text-text-primary mb-3">Data Export</h2>
+                <div className="space-y-2">
+                     <button
+                        onClick={handleExportSales}
+                        className="w-full flex items-center justify-between p-4 bg-card rounded-lg text-left transition-colors hover:bg-gray-500/10"
+                    >
+                        <div className="flex items-center">
+                            <FileOutput className="mr-4 text-primary" size={24} />
+                            <span className="font-semibold text-text-primary">Export Sales to CSV</span>
+                        </div>
+                    </button>
+                     <button
+                        onClick={handleExportPurchases}
+                        className="w-full flex items-center justify-between p-4 bg-card rounded-lg text-left transition-colors hover:bg-gray-500/10"
+                    >
+                        <div className="flex items-center">
+                            <FileOutput className="mr-4 text-primary" size={24} />
+                            <span className="font-semibold text-text-primary">Export Purchases to CSV</span>
+                        </div>
+                    </button>
+                     <button
+                        onClick={handleExportProducts}
+                        className="w-full flex items-center justify-between p-4 bg-card rounded-lg text-left transition-colors hover:bg-gray-500/10"
+                    >
+                        <div className="flex items-center">
+                            <FileArchive className="mr-4 text-primary" size={24} />
+                            <span className="font-semibold text-text-primary">Export Products to CSV</span>
+                        </div>
+                    </button>
+                     <button
+                        onClick={handleExportCustomers}
+                        className="w-full flex items-center justify-between p-4 bg-card rounded-lg text-left transition-colors hover:bg-gray-500/10"
+                    >
+                        <div className="flex items-center">
+                            <UsersRound className="mr-4 text-primary" size={24} />
+                            <span className="font-semibold text-text-primary">Export Customers to CSV</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+        </PageWrapper>
     );
 };
 

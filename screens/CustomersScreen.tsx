@@ -1,34 +1,38 @@
+
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
-import BottomNav from '../components/layout/BottomNav';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { Search, Filter, Plus, Users } from 'lucide-react';
+import { Search, Filter, Plus, Users, LayoutGrid, List, ChevronsUpDown, ChevronDown, ChevronUp } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import EmptyState from '../components/ui/EmptyState';
 import { motion } from 'framer-motion';
 import Modal from '../components/ui/Modal';
+import { Customer } from '../types';
+
+type SortKey = keyof Customer | 'outstanding';
+type SortDirection = 'ascending' | 'descending';
 
 const CustomersScreen: React.FC = () => {
     const navigate = useNavigate();
     const { customers } = useData();
     const [searchTerm, setSearchTerm] = useState('');
     const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'ascending' });
+    
     const [filterOptions, setFilterOptions] = useState({
         showOutstanding: false,
-        sortBy: 'name_asc', // 'name_asc', 'name_desc', 'outstanding_desc', 'outstanding_asc'
     });
 
-    const filteredCustomers = useMemo(() => {
+    const sortedCustomers = useMemo(() => {
         let customersToFilter = [...customers];
         
-        // Filter
         if (filterOptions.showOutstanding) {
             customersToFilter = customersToFilter.filter(c => c.outstanding > 0);
         }
 
-        // Search
         if (searchTerm) {
             customersToFilter = customersToFilter.filter(customer =>
                 customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -36,34 +40,118 @@ const CustomersScreen: React.FC = () => {
             );
         }
 
-        // Sort
-        switch (filterOptions.sortBy) {
-            case 'name_desc':
-                customersToFilter.sort((a, b) => b.name.localeCompare(a.name));
-                break;
-            case 'outstanding_desc':
-                customersToFilter.sort((a, b) => b.outstanding - a.outstanding);
-                break;
-            case 'outstanding_asc':
-                customersToFilter.sort((a, b) => a.outstanding - b.outstanding);
-                break;
-            case 'name_asc':
-            default:
-                customersToFilter.sort((a, b) => a.name.localeCompare(b.name));
-                break;
-        }
+        customersToFilter.sort((a, b) => {
+            const aValue = a[sortConfig.key];
+            const bValue = b[sortConfig.key];
+            
+            if (aValue < bValue) {
+                return sortConfig.direction === 'ascending' ? -1 : 1;
+            }
+            if (aValue > bValue) {
+                return sortConfig.direction === 'ascending' ? 1 : -1;
+            }
+            return 0;
+        });
 
         return customersToFilter;
-    }, [customers, searchTerm, filterOptions]);
+    }, [customers, searchTerm, filterOptions, sortConfig]);
+
+    const requestSort = (key: SortKey) => {
+        let direction: SortDirection = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
+    
+    const getSortIcon = (key: SortKey) => {
+        if (sortConfig.key !== key) {
+            return <ChevronsUpDown size={16} className="ml-2 text-text-secondary" />;
+        }
+        if (sortConfig.direction === 'ascending') {
+            return <ChevronUp size={16} className="ml-2" />;
+        }
+        return <ChevronDown size={16} className="ml-2" />;
+    };
+
+    const renderTableView = () => (
+      <Card className="p-0 overflow-x-auto">
+          <table className="w-full text-left">
+              <thead>
+                  <tr className="border-b border-gray-700/50">
+                      <th className="p-3 text-sm font-semibold text-text-secondary cursor-pointer" onClick={() => requestSort('name')}>
+                          <div className="flex items-center">Name {getSortIcon('name')}</div>
+                      </th>
+                      <th className="p-3 text-sm font-semibold text-text-secondary cursor-pointer" onClick={() => requestSort('phone')}>
+                          <div className="flex items-center">Phone {getSortIcon('phone')}</div>
+                      </th>
+                      <th className="p-3 text-sm font-semibold text-text-secondary cursor-pointer text-right" onClick={() => requestSort('outstanding')}>
+                          <div className="flex items-center justify-end">Outstanding {getSortIcon('outstanding')}</div>
+                      </th>
+                  </tr>
+              </thead>
+              <tbody>
+                  {sortedCustomers.map(customer => (
+                      <tr key={customer.id} className="border-b border-gray-700/50 last:border-b-0 hover:bg-accent/50 cursor-pointer" onClick={() => navigate(`/customer/${customer.id}`)}>
+                          <td className="p-3 font-medium text-text-primary">{customer.name}</td>
+                          <td className="p-3 text-text-secondary">{customer.phone}</td>
+                          <td className={`p-3 font-bold text-right ${customer.outstanding > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                              ₹{customer.outstanding.toLocaleString('en-IN')}
+                          </td>
+                      </tr>
+                  ))}
+              </tbody>
+          </table>
+      </Card>
+    );
+
+    const renderCardView = () => (
+        <motion.div 
+            className="space-y-3 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-4 md:space-y-0"
+            initial="hidden"
+            animate="visible"
+            variants={{
+                visible: { transition: { staggerChildren: 0.05 } },
+            }}
+        >
+            {sortedCustomers.map(customer => (
+                <motion.div
+                    key={customer.id}
+                    variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                >
+                    <Card className="cursor-pointer transition-transform transform hover:scale-105 h-full" onClick={() => navigate(`/customer/${customer.id}`)}>
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <p className="font-bold text-text-primary">{customer.name}</p>
+                                <p className="text-sm text-text-secondary">{customer.phone}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-sm text-text-secondary">Outstanding</p>
+                                <p className={`font-bold ${customer.outstanding > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                    ₹{customer.outstanding.toLocaleString('en-IN')}
+                                </p>
+                            </div>
+                        </div>
+                    </Card>
+                </motion.div>
+            ))}
+        </motion.div>
+    );
 
   return (
     <>
       <PageWrapper>
         <header className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold font-poppins text-text-primary">Customers</h1>
-           <Button className="w-auto px-4 py-2 flex items-center" onClick={() => navigate('/add-customer')}>
-            <Plus size={20} className="mr-2"/> New
-          </Button>
+           <div className="flex items-center gap-2">
+              <div className="hidden md:flex items-center bg-card rounded-lg p-1">
+                  <button onClick={() => setViewMode('card')} className={`p-2 rounded ${viewMode === 'card' ? 'bg-primary text-white' : 'text-text-secondary'}`}><LayoutGrid size={20}/></button>
+                  <button onClick={() => setViewMode('table')} className={`p-2 rounded ${viewMode === 'table' ? 'bg-primary text-white' : 'text-text-secondary'}`}><List size={20}/></button>
+              </div>
+              <Button className="w-auto px-4 py-2 flex items-center" onClick={() => navigate('/add-customer')}>
+                  <Plus size={20} className="mr-2"/> New
+              </Button>
+           </div>
         </header>
 
         <div className="flex gap-2 mb-6">
@@ -82,40 +170,10 @@ const CustomersScreen: React.FC = () => {
           </button>
         </div>
 
-        {filteredCustomers.length > 0 ? (
-            <motion.div 
-                className="space-y-3"
-                initial="hidden"
-                animate="visible"
-                variants={{
-                    visible: { transition: { staggerChildren: 0.05 } },
-                }}
-            >
-            {filteredCustomers.map(customer => (
-                <motion.div
-                    key={customer.id}
-                    variants={{
-                        hidden: { opacity: 0, y: 20 },
-                        visible: { opacity: 1, y: 0 },
-                    }}
-                >
-                    <Card className="cursor-pointer transition-transform transform hover:scale-105" onClick={() => navigate(`/customer/${customer.id}`)}>
-                    <div className="flex justify-between items-center">
-                        <div>
-                        <p className="font-bold text-text-primary">{customer.name}</p>
-                        <p className="text-sm text-text-secondary">{customer.phone}</p>
-                        </div>
-                        <div className="text-right">
-                        <p className="text-sm text-text-secondary">Outstanding</p>
-                        <p className={`font-bold ${customer.outstanding > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                            ₹{customer.outstanding.toLocaleString('en-IN')}
-                        </p>
-                        </div>
-                    </div>
-                    </Card>
-                </motion.div>
-            ))}
-            </motion.div>
+        {sortedCustomers.length > 0 ? (
+            <div className="hidden md:block">
+                {viewMode === 'card' ? renderCardView() : renderTableView()}
+            </div>
         ) : (
             <EmptyState
                 icon={<Users size={40} className="text-primary"/>}
@@ -125,8 +183,14 @@ const CustomersScreen: React.FC = () => {
                 onAction={() => navigate('/add-customer')}
             />
         )}
+        
+        {/* Always render card view on mobile */}
+        <div className="md:hidden">
+            {sortedCustomers.length > 0 ? renderCardView() : null}
+        </div>
+
       </PageWrapper>
-      <Modal title="Filter & Sort Customers" isOpen={isFilterOpen} onClose={() => setIsFilterOpen(false)}>
+      <Modal title="Filter Customers" isOpen={isFilterOpen} onClose={() => setIsFilterOpen(false)}>
         <div className="space-y-4">
             <div>
                 <label className="text-sm font-medium text-text-secondary">Filter</label>
@@ -143,24 +207,9 @@ const CustomersScreen: React.FC = () => {
                     </label>
                 </div>
             </div>
-             <div>
-                <label htmlFor="sort" className="text-sm font-medium text-text-secondary">Sort By</label>
-                <select 
-                    id="sort" 
-                    className="w-full mt-2 bg-background border-none text-text-primary rounded-lg p-3 focus:ring-2 focus:ring-primary outline-none"
-                    value={filterOptions.sortBy}
-                    onChange={(e) => setFilterOptions({...filterOptions, sortBy: e.target.value})}
-                >
-                    <option value="name_asc">Name (A-Z)</option>
-                    <option value="name_desc">Name (Z-A)</option>
-                    <option value="outstanding_desc">Outstanding (High to Low)</option>
-                    <option value="outstanding_asc">Outstanding (Low to High)</option>
-                </select>
-            </div>
             <Button onClick={() => setIsFilterOpen(false)}>Apply Filters</Button>
         </div>
     </Modal>
-      <BottomNav />
     </>
   );
 };

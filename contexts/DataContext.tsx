@@ -1,5 +1,31 @@
-import React, { createContext, useState, useContext, ReactNode, useCallback } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
 import { Customer, Product, Sale, Purchase, CreditEntry } from '../types';
+import { mockCustomers, mockProducts, mockSales } from '../utils/mockData';
+import { GoogleGenAI } from "@google/genai";
+
+// A helper hook to persist state to localStorage
+const useStickyState = <T,>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] => {
+    const [value, setValue] = useState<T>(() => {
+        try {
+            const stickyValue = window.localStorage.getItem(key);
+            return stickyValue !== null ? JSON.parse(stickyValue) : defaultValue;
+        } catch (e) {
+            console.warn(`Error reading localStorage key “${key}”:`, e);
+            return defaultValue;
+        }
+    });
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+            console.warn(`Error setting localStorage key “${key}”:`, e);
+        }
+    }, [key, value]);
+
+    return [value, setValue];
+};
+
 
 interface DataContextType {
   customers: Customer[];
@@ -13,22 +39,27 @@ interface DataContextType {
   getCreditEntriesByCustomerId: (customerId: number) => CreditEntry[];
   addCustomer: (customer: Omit<Customer, 'id' | 'firm_id' | 'outstanding' | 'totalPaid'>) => void;
   addProduct: (product: Omit<Product, 'id' | 'firm_id'>) => void;
+  updateProduct: (updatedProduct: Product) => void;
   addBulkProducts: (products: Omit<Product, 'id' | 'firm_id'>[]) => void;
-  addSale: (sale: Omit<Sale, 'id' | 'firm_id' | 'date_time' | 'total_amount' | 'bill_no'>) => number;
+  addSale: (sale: Omit<Sale, 'id' | 'firm_id' | 'date_time' | 'total_amount' | 'bill_no' | 'buy_price_at_sale'>) => number;
   addPurchase: (purchase: Omit<Purchase, 'id' | 'firm_id' | 'date_time' | 'total_amount'>) => void;
   addCreditEntry: (entry: Omit<CreditEntry, 'id' | 'firm_id' | 'date_time' | 'status'>) => void;
   markCreditAsPaid: (entryId: number) => void;
   deleteSale: (saleId: number) => void;
+  restoreData: (data: any) => boolean;
+  loadMockData: () => void;
+  clearAllData: () => void;
+  generateAndAddRandomProducts: (businessType: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [creditEntries, setCreditEntries] = useState<CreditEntry[]>([]);
+  const [customers, setCustomers] = useStickyState<Customer[]>([], 'data_customers');
+  const [products, setProducts] = useStickyState<Product[]>([], 'data_products');
+  const [sales, setSales] = useStickyState<Sale[]>([], 'data_sales');
+  const [purchases, setPurchases] = useStickyState<Purchase[]>([], 'data_purchases');
+  const [creditEntries, setCreditEntries] = useStickyState<CreditEntry[]>([], 'data_creditEntries');
 
   const getCustomerById = useCallback((id: number) => customers.find(c => c.id === id), [customers]);
   const getProductById = useCallback((id: number) => products.find(p => p.id === id), [products]);
@@ -42,13 +73,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const addProduct = (productData: Omit<Product, 'id' | 'firm_id'>) => {
     setProducts(prev => [...prev, { ...productData, id: Date.now(), firm_id: 1 }]);
   };
+
+  const updateProduct = (updatedProduct: Product) => {
+    setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+  };
   
   const addBulkProducts = (productsData: Omit<Product, 'id' | 'firm_id'>[]) => {
     const newProducts = productsData.map(p => ({...p, id: Date.now() + Math.random(), firm_id: 1}))
     setProducts(prev => [...prev, ...newProducts]);
   };
 
-  const addSale = (saleData: Omit<Sale, 'id' | 'firm_id' | 'date_time' | 'total_amount' | 'bill_no'>): number => {
+  const addSale = (saleData: Omit<Sale, 'id' | 'firm_id' | 'date_time' | 'total_amount' | 'bill_no' | 'buy_price_at_sale'>): number => {
     const product = getProductById(saleData.product_id);
     if (!product) return 0;
 
@@ -66,7 +101,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         firm_id: 1, 
         date_time: new Date().toISOString(), 
         total_amount,
-        bill_no
+        bill_no,
+        buy_price_at_sale: product.buy_price,
     };
     
     setSales(prev => [...prev, newSale]);
@@ -142,11 +178,89 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setSales(prev => prev.filter(s => s.id !== saleId));
   };
 
+  const restoreData = (data: any): boolean => {
+    try {
+        if(data.customers && data.products && data.sales && data.purchases && data.creditEntries) {
+            setCustomers(data.customers);
+            setProducts(data.products);
+            setSales(data.sales);
+            setPurchases(data.purchases);
+            setCreditEntries(data.creditEntries);
+            return true;
+        }
+        return false;
+    } catch (e) {
+        console.error("Failed to restore data", e);
+        return false;
+    }
+  };
+
+  const loadMockData = () => {
+    setCustomers(mockCustomers);
+    setProducts(mockProducts);
+    setSales(mockSales);
+    setPurchases([]);
+    setCreditEntries([]);
+  };
+
+  const clearAllData = () => {
+    setCustomers([]);
+    setProducts([]);
+    setSales([]);
+    setPurchases([]);
+    setCreditEntries([]);
+  };
+  
+  const generateAndAddRandomProducts = async (businessType: string): Promise<void> => {
+    if (!process.env.API_KEY) {
+      throw new Error("API_KEY environment variable not set");
+    }
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    const prompt = `Generate a JSON array of 20 realistic product names for a "${businessType}". The JSON output must be an array of objects, where each object has a single key "name". For example: [{"name": "Product Name 1"}, {"name": "Product Name 2"}]. Do not include any other text or formatting in your response.`;
+
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+        }
+      });
+      const resultText = response.text.trim();
+      const generatedNames: { name: string }[] = JSON.parse(resultText);
+
+      const gstRates = [0, 5, 12, 18, 28];
+      const newProducts = generatedNames.map(item => {
+        const buy_price = Math.floor(Math.random() * (5000 - 10 + 1)) + 10;
+        const sell_price = parseFloat((buy_price * (1 + (Math.random() * (0.3 - 0.1) + 0.1))).toFixed(2));
+        const gst = gstRates[Math.floor(Math.random() * gstRates.length)];
+        
+        return {
+          name: item.name,
+          buy_price,
+          buy_gst: gst,
+          sell_price,
+          sell_gst: gst,
+          stock: Math.floor(Math.random() * 101),
+          category: businessType,
+          is_active: true
+        };
+      });
+      
+      addBulkProducts(newProducts);
+
+    } catch (error) {
+        console.error("Error generating products with Gemini:", error);
+        throw new Error("Failed to generate products. Please check the console for details.");
+    }
+  };
+
   const value = {
     customers, products, sales, purchases, creditEntries,
     getCustomerById, getProductById, getSaleById, getCreditEntriesByCustomerId,
-    addCustomer, addProduct, addBulkProducts, addSale, addPurchase, addCreditEntry, markCreditAsPaid,
-    deleteSale
+    addCustomer, addProduct, updateProduct, addBulkProducts, addSale, addPurchase, addCreditEntry, markCreditAsPaid,
+    deleteSale, restoreData, loadMockData, clearAllData, generateAndAddRandomProducts,
   };
 
   return (
