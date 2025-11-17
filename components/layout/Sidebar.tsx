@@ -1,13 +1,14 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Archive, FileText, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Archive, FileText, Settings, CreditCard } from 'lucide-react';
 import Logo from '../ui/Logo';
 import { useAuth } from '../../contexts/AuthContext';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/customers', icon: Users, label: 'Customers' },
+  { path: '/credit', icon: CreditCard, label: 'Credit' },
   { path: '/products', icon: Archive, label: 'Products' },
   { path: '/reports', icon: FileText, label: 'Reports' },
   { path: '/settings', icon: Settings, label: 'Settings' },

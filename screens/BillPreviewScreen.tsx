@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Sale, Customer, Product } from '../types';
+import { Sale, Customer, Product, SaleItem } from '../types';
 import PageWrapper from '../components/layout/PageWrapper';
 import Button from '../components/ui/Button';
 import { ArrowLeft, Printer, Share2, Download, Building, Trash2 } from 'lucide-react';
@@ -25,7 +25,6 @@ const BillPreviewScreen: React.FC = () => {
     
     const [sale, setSale] = useState<Sale | null>(null);
     const [customer, setCustomer] = useState<Customer | null>(null);
-    const [product, setProduct] = useState<Product | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [billType, setBillType] = useState<'with-gst' | 'without-gst'>('with-gst');
 
@@ -38,9 +37,8 @@ const BillPreviewScreen: React.FC = () => {
             if (saleData.customer_id) {
                 setCustomer(getCustomerById(saleData.customer_id) || null);
             }
-            setProduct(getProductById(saleData.product_id) || null);
         }
-    }, [saleId, getSaleById, getCustomerById, getProductById]);
+    }, [saleId, getSaleById, getCustomerById]);
 
     const handleDelete = () => {
         if (sale) {
@@ -71,49 +69,35 @@ const BillPreviewScreen: React.FC = () => {
     };
 
     const handleWhatsAppShare = () => {
-        if (!sale || !product || !firm) return;
+        if (!sale || !firm) return;
+        
         const paidAmount = sale.payments.filter(p => p.method !== 'Credit Sale').reduce((acc, p) => acc + p.amount, 0);
         let text = '';
         const isGstBill = billType === 'with-gst';
 
-        if(isGstBill) {
-            const netAmount = sale.sell_price * sale.qty;
-            const gstAmount = netAmount * (sale.sell_gst / 100);
-            const balanceDue = sale.total_amount - paidAmount;
-            text = `
-*⭐ ${firm.name} ⭐*
------------------------------------
-*🧾 TAX INVOICE*
-Bill No: *${sale.bill_no}*
-Date: ${new Date(sale.date_time).toLocaleDateString()}
-${customer ? `
-*👤 CUSTOMER*
-Name: ${customer.name}
-Phone: ${customer.phone}
-` : ''}-----------------------------------
-*📦 ITEM DETAILS*
-• *${product.name}*
-  Qty: ${sale.qty} @ ₹${sale.sell_price.toFixed(2)}
+        const itemsText = sale.items.map(item => {
+            const product = getProductById(item.product_id);
+            const netAmount = item.sell_price * item.qty;
+            if (isGstBill) {
+                 const gstAmount = netAmount * (item.sell_gst / 100);
+                 return `• *${product?.name || 'Product'}*
+  Qty: ${item.qty} @ ₹${item.sell_price.toFixed(2)}
   Net: ₹${netAmount.toFixed(2)}
-  GST ${sale.sell_gst}%: ₹${gstAmount.toFixed(2)}
------------------------------------
-*💰 PAYMENT SUMMARY*
-Subtotal: ₹${(netAmount + gstAmount).toFixed(2)}
-Discount: - ₹${sale.discount.toFixed(2)}
-*Final Payable: ₹${sale.total_amount.toFixed(2)}*
-Paid: ₹${paidAmount.toFixed(2)}
-Due: ₹${balanceDue.toFixed(2)}
------------------------------------
-*🙏 THANK YOU 🙏*
-            `;
-        } else {
-            const totalAmount = sale.sell_price * sale.qty;
-            const finalPayable = totalAmount - sale.discount;
-            const balanceDue = finalPayable - paidAmount;
-            text = `
+  GST ${item.sell_gst}%: ₹${gstAmount.toFixed(2)}`;
+            } else {
+                return `• *${product?.name || 'Product'}*
+  Qty: ${item.qty}
+  Rate: ₹${item.sell_price.toFixed(2)}
+  Amount: ₹${netAmount.toFixed(2)}`;
+            }
+        }).join('\n');
+        
+        const totalAmountWithoutGst = sale.items.reduce((acc, item) => acc + (item.sell_price * item.qty), 0);
+
+        text = `
 *⭐ ${firm.name} ⭐*
 -----------------------------------
-*🧾 CASH MEMO / ESTIMATE*
+*🧾 ${isGstBill ? 'TAX INVOICE' : 'CASH MEMO / ESTIMATE'}*
 Bill No: *${sale.bill_no}*
 Date: ${new Date(sale.date_time).toLocaleDateString()}
 ${customer ? `
@@ -122,21 +106,17 @@ Name: ${customer.name}
 Phone: ${customer.phone}
 ` : ''}-----------------------------------
 *📦 ITEM DETAILS*
-• *${product.name}*
-  Qty: ${sale.qty}
-  Rate: ₹${sale.sell_price.toFixed(2)}
-  Amount: ₹${totalAmount.toFixed(2)}
+${itemsText}
 -----------------------------------
 *💰 PAYMENT SUMMARY*
-Total: ₹${totalAmount.toFixed(2)}
+Subtotal: ₹${(isGstBill ? sale.total_amount + sale.discount : totalAmountWithoutGst).toFixed(2)}
 Discount: - ₹${sale.discount.toFixed(2)}
-*Final Payable: ₹${finalPayable.toFixed(2)}*
+*Final Payable: ₹${(isGstBill ? sale.total_amount : totalAmountWithoutGst - sale.discount).toFixed(2)}*
 Paid: ₹${paidAmount.toFixed(2)}
-Due: ₹${balanceDue.toFixed(2)}
+Due: ₹${((isGstBill ? sale.total_amount : totalAmountWithoutGst - sale.discount) - paidAmount).toFixed(2)}
 -----------------------------------
 *🙏 THANK YOU 🙏*
             `;
-        }
 
         const encodedText = encodeURIComponent(text.trim());
         window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank');
@@ -159,21 +139,19 @@ Due: ₹${balanceDue.toFixed(2)}
         );
     }
 
-    if (!sale || !product) {
+    if (!sale) {
         return <PageWrapper><div className="text-center mt-10">Loading Bill...</div></PageWrapper>;
     }
     
     const isGstBill = billType === 'with-gst';
     
     // Calculations
-    const netAmount = sale.sell_price * sale.qty;
-    const gstAmount = netAmount * (sale.sell_gst / 100);
     const paidAmount = sale.payments.filter(p => p.method !== 'Credit Sale').reduce((acc, p) => acc + p.amount, 0);
-
-    const totalAmountWithoutGst = netAmount;
+    const totalAmountWithoutGst = sale.items.reduce((acc, item) => acc + (item.sell_price * item.qty), 0);
     const finalPayableWithoutGst = totalAmountWithoutGst - sale.discount;
-    const balanceDueWithoutGst = finalPayableWithoutGst - paidAmount;
+
     const balanceDueWithGst = sale.total_amount - paidAmount;
+    const balanceDueWithoutGst = finalPayableWithoutGst - paidAmount;
 
     return (
         <>
@@ -212,28 +190,31 @@ Due: ₹${balanceDue.toFixed(2)}
                     
                     <div className="border-b-2 border-dashed border-gray-500 pb-2 mb-2">
                         <h3 className="font-bold text-center mb-1">ITEM DETAILS</h3>
-                        <p className="font-bold">• {product.name}</p>
-                        <div className="pl-4">
-                            <div className="flex justify-between"><span>Qty:</span> <span>{sale.qty}</span></div>
-                            <div className="flex justify-between"><span>Rate {isGstBill ? '(ex GST)' : ''}:</span> <span>₹{sale.sell_price.toFixed(2)}</span></div>
-                            {isGstBill && (
-                                <div className="flex justify-between"><span>GST {sale.sell_gst}%:</span> <span>₹{gstAmount.toFixed(2)}</span></div>
-                            )}
-                            <div className="flex justify-between font-bold"><span>{isGstBill ? 'Subtotal' : 'Amount'}:</span> <span>₹{(isGstBill ? netAmount + gstAmount : netAmount).toFixed(2)}</span></div>
-                        </div>
+                         <div className="space-y-2">
+                            {sale.items.map(item => {
+                                const product = getProductById(item.product_id);
+                                const netAmount = item.sell_price * item.qty;
+                                const gstAmount = netAmount * (item.sell_gst / 100);
+                                return (
+                                    <div key={item.product_id} className="pt-1">
+                                        <p className="font-bold">• {product?.name || 'Product'}</p>
+                                        <div className="pl-4">
+                                            <div className="flex justify-between"><span>Qty:</span> <span>{item.qty}</span></div>
+                                            <div className="flex justify-between"><span>Rate {isGstBill ? '(ex GST)' : ''}:</span> <span>₹{item.sell_price.toFixed(2)}</span></div>
+                                            {isGstBill && (
+                                                <div className="flex justify-between"><span>GST {item.sell_gst}%:</span> <span>₹{gstAmount.toFixed(2)}</span></div>
+                                            )}
+                                            <div className="flex justify-between font-bold"><span>Amount:</span> <span>₹{(isGstBill ? netAmount + gstAmount : netAmount).toFixed(2)}</span></div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                         </div>
                     </div>
                     
                     <div className="border-b-2 border-dashed border-gray-500 pb-2 mb-2">
                         <h3 className="font-bold text-center mb-1">PAYMENT SUMMARY</h3>
-                        {isGstBill ? (
-                             <>
-                                <div className="flex justify-between"><span>Net Amount (ex GST):</span> <span>₹{netAmount.toFixed(2)}</span></div>
-                                <div className="flex justify-between"><span>Total GST:</span> <span>₹{gstAmount.toFixed(2)}</span></div>
-                                <div className="flex justify-between font-bold"><span>Gross Amount:</span> <span>₹{(netAmount + gstAmount).toFixed(2)}</span></div>
-                             </>
-                        ) : (
-                             <div className="flex justify-between"><span>Total Amount:</span> <span>₹{totalAmountWithoutGst.toFixed(2)}</span></div>
-                        )}
+                         <div className="flex justify-between"><span>Subtotal:</span> <span>₹{(isGstBill ? sale.total_amount + sale.discount : totalAmountWithoutGst).toFixed(2)}</span></div>
                         <div className="flex justify-between"><span>Discount:</span> <span>- ₹{sale.discount.toFixed(2)}</span></div>
                         <div className="flex justify-between"><span>Paid Amount:</span> <span>₹{paidAmount.toFixed(2)}</span></div>
                         <div className="flex justify-between font-bold"><span>Balance Due:</span> <span>₹{(isGstBill ? balanceDueWithGst : balanceDueWithoutGst).toFixed(2)}</span></div>

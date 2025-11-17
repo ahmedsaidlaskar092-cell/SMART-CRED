@@ -1,5 +1,6 @@
+
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
-import { Customer, Product, Sale, Purchase, CreditEntry } from '../types';
+import { Customer, Product, Sale, Purchase, SaleItem, PaymentReceived } from '../types';
 import { mockCustomers, mockProducts, mockSales } from '../utils/mockData';
 import { GoogleGenAI } from "@google/genai";
 
@@ -32,19 +33,20 @@ interface DataContextType {
   products: Product[];
   sales: Sale[];
   purchases: Purchase[];
-  creditEntries: CreditEntry[];
+  paymentsReceived: PaymentReceived[];
   getCustomerById: (id: number) => Customer | undefined;
   getProductById: (id: number) => Product | undefined;
   getSaleById: (id: number) => Sale | undefined;
-  getCreditEntriesByCustomerId: (customerId: number) => CreditEntry[];
-  addCustomer: (customer: Omit<Customer, 'id' | 'firm_id' | 'outstanding' | 'totalPaid'>) => void;
+  getSalesByCustomerId: (customerId: number) => Sale[];
+  getPaymentsByCustomerId: (customerId: number) => PaymentReceived[];
+  addCustomer: (customer: Omit<Customer, 'id' | 'firm_id' | 'outstanding' | 'totalPaid'>) => Customer;
   addProduct: (product: Omit<Product, 'id' | 'firm_id'>) => void;
   updateProduct: (updatedProduct: Product) => void;
   addBulkProducts: (products: Omit<Product, 'id' | 'firm_id'>[]) => void;
-  addSale: (sale: Omit<Sale, 'id' | 'firm_id' | 'date_time' | 'total_amount' | 'bill_no' | 'buy_price_at_sale'>) => number;
+  addSale: (sale: Omit<Sale, 'id' | 'firm_id' | 'date_time' | 'total_amount' | 'bill_no'>) => number;
   addPurchase: (purchase: Omit<Purchase, 'id' | 'firm_id' | 'date_time' | 'total_amount'>) => void;
-  addCreditEntry: (entry: Omit<CreditEntry, 'id' | 'firm_id' | 'date_time' | 'status'>) => void;
-  markCreditAsPaid: (entryId: number) => void;
+  addPaymentReceived: (payment: Omit<PaymentReceived, 'id' | 'firm_id'>) => void;
+  deletePaymentReceived: (paymentId: number) => void;
   deleteSale: (saleId: number) => void;
   restoreData: (data: any) => boolean;
   loadMockData: () => void;
@@ -59,15 +61,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [products, setProducts] = useStickyState<Product[]>([], 'data_products');
   const [sales, setSales] = useStickyState<Sale[]>([], 'data_sales');
   const [purchases, setPurchases] = useStickyState<Purchase[]>([], 'data_purchases');
-  const [creditEntries, setCreditEntries] = useStickyState<CreditEntry[]>([], 'data_creditEntries');
+  const [paymentsReceived, setPaymentsReceived] = useStickyState<PaymentReceived[]>([], 'data_paymentsReceived');
 
   const getCustomerById = useCallback((id: number) => customers.find(c => c.id === id), [customers]);
   const getProductById = useCallback((id: number) => products.find(p => p.id === id), [products]);
   const getSaleById = useCallback((id: number) => sales.find(s => s.id === id), [sales]);
-  const getCreditEntriesByCustomerId = useCallback((customerId: number) => creditEntries.filter(c => c.customer_id === customerId).sort((a,b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime()), [creditEntries]);
+  const getSalesByCustomerId = useCallback((customerId: number) => sales.filter(s => s.customer_id === customerId), [sales]);
+  const getPaymentsByCustomerId = useCallback((customerId: number) => paymentsReceived.filter(p => p.customer_id === customerId), [paymentsReceived]);
 
-  const addCustomer = (customerData: Omit<Customer, 'id' | 'firm_id' | 'outstanding' | 'totalPaid'>) => {
-    setCustomers(prev => [...prev, { ...customerData, id: Date.now(), firm_id: 1, outstanding: 0, totalPaid: 0 }]);
+  const addCustomer = (customerData: Omit<Customer, 'id' | 'firm_id' | 'outstanding' | 'totalPaid'>): Customer => {
+    let formattedPhone = customerData.phone.trim();
+    if (formattedPhone && !formattedPhone.startsWith('+91')) {
+        formattedPhone = `+91${formattedPhone}`;
+    }
+    const newCustomer = { ...customerData, phone: formattedPhone, id: Date.now(), firm_id: 1, outstanding: 0, totalPaid: 0 };
+    setCustomers(prev => [...prev, newCustomer]);
+    return newCustomer;
   };
 
   const addProduct = (productData: Omit<Product, 'id' | 'firm_id'>) => {
@@ -83,45 +92,77 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setProducts(prev => [...prev, ...newProducts]);
   };
 
-  const addSale = (saleData: Omit<Sale, 'id' | 'firm_id' | 'date_time' | 'total_amount' | 'bill_no' | 'buy_price_at_sale'>): number => {
-    const product = getProductById(saleData.product_id);
-    if (!product) return 0;
+  const addSale = (saleData: Omit<Sale, 'id' | 'firm_id' | 'date_time' | 'total_amount' | 'bill_no'>): number => {
+    const total_amount = saleData.items.reduce((acc, item) => {
+        const itemTotal = item.sell_price * item.qty;
+        const gstAmount = itemTotal * (item.sell_gst / 100);
+        return acc + itemTotal + gstAmount;
+    }, 0) - saleData.discount;
 
-    const priceBeforeGst = saleData.sell_price * saleData.qty;
-    const gstAmount = priceBeforeGst * (saleData.sell_gst / 100);
-    const grossTotal = priceBeforeGst + gstAmount;
-    const total_amount = grossTotal - saleData.discount;
-    
     const newSaleId = Date.now();
     const bill_no = `INV-${newSaleId}`;
 
-    const newSale: Sale = { 
-        ...saleData, 
-        id: newSaleId, 
-        firm_id: 1, 
-        date_time: new Date().toISOString(), 
+    const newSale: Sale = {
+        ...saleData,
+        id: newSaleId,
+        firm_id: 1,
+        date_time: new Date().toISOString(),
         total_amount,
         bill_no,
-        buy_price_at_sale: product.buy_price,
     };
-    
+
     setSales(prev => [...prev, newSale]);
-    
-    setProducts(prev => prev.map(p => p.id === saleData.product_id ? { ...p, stock: p.stock - saleData.qty } : p));
-    
-    const creditPayment = saleData.payments.find(p => p.method === 'Credit Sale');
-    if (creditPayment && saleData.customer_id) {
-        addCreditEntry({
-            customer_id: saleData.customer_id,
-            sale_id: newSale.id,
-            productName: `${product.name} (Bill: ${bill_no})`,
-            amount: creditPayment.amount,
-            gst: 0,
-            due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        });
+
+    // Update stock for all items
+    saleData.items.forEach(item => {
+        setProducts(prev => prev.map(p =>
+            p.id === item.product_id ? { ...p, stock: p.stock - item.qty } : p
+        ));
+    });
+
+    // Handle credit and paid amounts
+    if (saleData.customer_id) {
+        const creditPayment = saleData.payments.find(p => p.method === 'Credit Sale');
+        const creditAmount = creditPayment ? creditPayment.amount : 0;
+        const paidAmount = saleData.payments.filter(p=>p.method !== 'Credit Sale').reduce((acc, p) => acc + p.amount, 0);
+
+        setCustomers(prev => prev.map(c => 
+            c.id === saleData.customer_id ? {
+                ...c,
+                outstanding: c.outstanding + creditAmount,
+                totalPaid: c.totalPaid + paidAmount
+            } : c
+        ));
     }
 
     return newSale.id;
+  };
+
+  const addPaymentReceived = (paymentData: Omit<PaymentReceived, 'id' | 'firm_id'>) => {
+    const newPayment = { ...paymentData, id: Date.now(), firm_id: 1 };
+    setPaymentsReceived(prev => [...prev, newPayment]);
+
+    setCustomers(prev => prev.map(c => 
+        c.id === paymentData.customer_id ? {
+            ...c,
+            outstanding: c.outstanding - newPayment.amount,
+            totalPaid: c.totalPaid + newPayment.amount
+        } : c
+    ));
+  };
+  
+  const deletePaymentReceived = (paymentId: number) => {
+    const paymentToDelete = paymentsReceived.find(p => p.id === paymentId);
+    if (!paymentToDelete) return;
+
+    setCustomers(prev => prev.map(c =>
+        c.id === paymentToDelete.customer_id ? {
+            ...c,
+            outstanding: c.outstanding + paymentToDelete.amount,
+            totalPaid: c.totalPaid - paymentToDelete.amount
+        } : c
+    ));
+    setPaymentsReceived(prev => prev.filter(p => p.id !== paymentId));
   };
   
   const addPurchase = (purchaseData: Omit<Purchase, 'id' | 'firm_id' | 'date_time' | 'total_amount'>) => {
@@ -135,43 +176,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setProducts(prev => prev.map(p => p.id === purchaseData.product_id ? { ...p, stock: p.stock + purchaseData.qty } : p));
   };
 
-  const addCreditEntry = (entryData: Omit<CreditEntry, 'id' | 'firm_id' | 'date_time' | 'status'>) => {
-    const total_amount = entryData.amount * (1 + entryData.gst / 100);
-    const newEntry = { ...entryData, id: Date.now(), firm_id: 1, date_time: new Date().toISOString(), status: 'PENDING' as const };
-    setCreditEntries(prev => [...prev, newEntry]);
-
-    setCustomers(prev => prev.map(c => c.id === entryData.customer_id ? { ...c, outstanding: c.outstanding + total_amount } : c));
-  };
-  
-  const markCreditAsPaid = (entryId: number) => {
-      const entry = creditEntries.find(e => e.id === entryId);
-      if(!entry) return;
-
-      const total_amount = entry.amount * (1 + entry.gst / 100);
-      setCreditEntries(prev => prev.map(e => e.id === entryId ? {...e, status: 'PAID'} : e));
-      setCustomers(prev => prev.map(c => c.id === entry.customer_id ? { ...c, outstanding: c.outstanding - total_amount, totalPaid: c.totalPaid + total_amount } : c));
-  };
-
   const deleteSale = (saleId: number) => {
     const saleToDelete = sales.find(s => s.id === saleId);
     if (!saleToDelete) return;
 
     // 1. Replenish product stock
-    setProducts(prev => prev.map(p =>
-        p.id === saleToDelete.product_id ? { ...p, stock: p.stock + saleToDelete.qty } : p
-    ));
+    saleToDelete.items.forEach(item => {
+      setProducts(prev => prev.map(p =>
+          p.id === item.product_id ? { ...p, stock: p.stock + item.qty } : p
+      ));
+    });
 
-    // 2. Find and reverse any associated credit entry
-    const creditEntryToDelete = creditEntries.find(ce => ce.sale_id === saleId);
-    if (creditEntryToDelete && saleToDelete.customer_id) {
-        const customerId = saleToDelete.customer_id;
-        // Reverse the outstanding amount on the customer
-        const creditAmount = creditEntryToDelete.amount;
+    // 2. Reverse financial impact on customer
+    if (saleToDelete.customer_id) {
+        const creditPayment = saleToDelete.payments.find(p => p.method === 'Credit Sale');
+        const creditAmount = creditPayment ? creditPayment.amount : 0;
+        const paidAmount = saleToDelete.payments.filter(p => p.method !== 'Credit Sale').reduce((acc, p) => acc + p.amount, 0);
+
         setCustomers(prev => prev.map(c =>
-            c.id === customerId ? { ...c, outstanding: c.outstanding - creditAmount } : c
+            c.id === saleToDelete.customer_id ? {
+                ...c,
+                outstanding: c.outstanding - creditAmount,
+                totalPaid: c.totalPaid - paidAmount,
+            } : c
         ));
-        // Remove the credit entry
-        setCreditEntries(prev => prev.filter(ce => ce.id !== creditEntryToDelete.id));
     }
 
     // 3. Remove the sale itself
@@ -180,12 +208,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const restoreData = (data: any): boolean => {
     try {
-        if(data.customers && data.products && data.sales && data.purchases && data.creditEntries) {
+        if(data.customers && data.products && data.sales && data.purchases && data.paymentsReceived) {
             setCustomers(data.customers);
             setProducts(data.products);
             setSales(data.sales);
             setPurchases(data.purchases);
-            setCreditEntries(data.creditEntries);
+            setPaymentsReceived(data.paymentsReceived);
             return true;
         }
         return false;
@@ -200,7 +228,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setProducts(mockProducts);
     setSales(mockSales);
     setPurchases([]);
-    setCreditEntries([]);
+    setPaymentsReceived([]);
   };
 
   const clearAllData = () => {
@@ -208,7 +236,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setProducts([]);
     setSales([]);
     setPurchases([]);
-    setCreditEntries([]);
+    setPaymentsReceived([]);
   };
   
   const generateAndAddRandomProducts = async (businessType: string): Promise<void> => {
@@ -257,9 +285,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const value = {
-    customers, products, sales, purchases, creditEntries,
-    getCustomerById, getProductById, getSaleById, getCreditEntriesByCustomerId,
-    addCustomer, addProduct, updateProduct, addBulkProducts, addSale, addPurchase, addCreditEntry, markCreditAsPaid,
+    customers, products, sales, purchases, paymentsReceived,
+    getCustomerById, getProductById, getSaleById, getSalesByCustomerId, getPaymentsByCustomerId,
+    addCustomer, addProduct, updateProduct, addBulkProducts, addSale, addPurchase, addPaymentReceived, deletePaymentReceived,
     deleteSale, restoreData, loadMockData, clearAllData, generateAndAddRandomProducts,
   };
 

@@ -22,8 +22,11 @@ const DashboardScreen: React.FC = () => {
     const totalPurchases = todaysPurchases.reduce((acc, p) => acc + p.total_amount, 0);
     
     const totalProfit = todaysSales.reduce((acc, s) => {
-      const profitPerItem = (s.sell_price - s.buy_price_at_sale) * s.qty;
-      return acc + profitPerItem - s.discount;
+      const saleProfit = s.items.reduce((itemAcc, item) => {
+          const profitPerItem = (item.sell_price - item.buy_price_at_sale) * item.qty;
+          return itemAcc + profitPerItem;
+      }, 0);
+      return acc + saleProfit - s.discount;
     }, 0);
 
     const totalCredit = customers.reduce((acc, c) => acc + c.outstanding, 0);
@@ -100,7 +103,7 @@ const DashboardScreen: React.FC = () => {
                             <tr className="border-b border-gray-700/50">
                                 <th className="p-3 text-sm font-semibold text-text-secondary">Bill No.</th>
                                 <th className="p-3 text-sm font-semibold text-text-secondary">Customer</th>
-                                <th className="p-3 text-sm font-semibold text-text-secondary">Date</th>
+                                <th className="p-3 text-sm font-semibold text-text-secondary">Items</th>
                                 <th className="p-3 text-sm font-semibold text-text-secondary text-right">Amount</th>
                                 <th className="p-3 text-sm font-semibold text-text-secondary text-center">Actions</th>
                             </tr>
@@ -112,7 +115,7 @@ const DashboardScreen: React.FC = () => {
                                     <tr key={sale.id} className="border-b border-gray-700/50 last:border-b-0 hover:bg-accent/50">
                                         <td className="p-3 font-medium text-text-primary">{sale.bill_no}</td>
                                         <td className="p-3 text-text-secondary">{customer?.name || 'Walk-in'}</td>
-                                        <td className="p-3 text-text-secondary">{new Date(sale.date_time).toLocaleDateString()}</td>
+                                        <td className="p-3 text-text-secondary">{sale.items.length}</td>
                                         <td className="p-3 font-medium text-text-primary text-right">₹{sale.total_amount.toFixed(2)}</td>
                                         <td className="p-3 text-center">
                                             <button onClick={() => navigate(`/bill/${sale.id}`)} className="p-1 text-primary hover:text-blue-400">

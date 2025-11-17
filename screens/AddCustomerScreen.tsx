@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
@@ -34,7 +33,21 @@ const AddCustomerScreen: React.FC = () => {
             <div className="max-w-lg mx-auto flex-grow flex flex-col w-full">
                 <form onSubmit={handleSubmit} className="space-y-4 flex-grow flex flex-col">
                     <Input label="Full Name" id="name" type="text" value={name} onChange={e => setName(e.target.value)} required />
-                    <Input label="Phone Number" id="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} required />
+                    <Input 
+                      label="Phone Number" 
+                      id="phone" 
+                      type="tel" 
+                      prefix="+91"
+                      maxLength={10}
+                      value={phone} 
+                      onChange={e => {
+                        const value = e.target.value;
+                        if (/^\d*$/.test(value)) {
+                            setPhone(value);
+                        }
+                      }} 
+                      required 
+                    />
                     <div>
                         <label htmlFor="address" className="block text-sm font-medium text-text-secondary mb-1">Address (optional)</label>
                         <textarea

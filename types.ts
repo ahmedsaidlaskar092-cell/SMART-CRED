@@ -48,16 +48,20 @@ export interface Payment {
     amount: number;
 }
 
+export interface SaleItem {
+  product_id: number;
+  qty: number;
+  sell_price: number;
+  buy_price_at_sale: number;
+  sell_gst: number;
+}
+
 export interface Sale {
     id: number;
     firm_id: number;
     bill_no: string;
     customer_id?: number;
-    product_id: number;
-    qty: number;
-    sell_price: number;
-    buy_price_at_sale: number;
-    sell_gst: number;
+    items: SaleItem[];
     discount: number;
     total_amount: number;
     payments: Payment[];
@@ -76,22 +80,31 @@ export interface Purchase {
     date_time: string;
 }
 
-export interface CreditEntry {
+export interface PaymentReceived {
     id: number;
     firm_id: number;
     customer_id: number;
-    sale_id?: number;
-    product_id?: number;
-    productName?: string;
     amount: number;
-    gst: number;
-    due_date: string;
+    method: 'Cash' | 'UPI' | 'Card';
     date_time: string;
-    status: 'PENDING' | 'PAID';
+    notes?: string;
 }
+
 
 export interface Device {
   id: string;
   name: string;
   lastLogin: string;
+}
+
+// For UI Rendering of Customer Ledger
+export interface LedgerEntry {
+    id: string;
+    date: Date;
+    type: 'sale' | 'payment';
+    description: string;
+    debit: number;
+    credit: number;
+    balance: number;
+    originalEntry: Sale | PaymentReceived;
 }

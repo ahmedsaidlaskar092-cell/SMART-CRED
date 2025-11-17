@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { User, Firm, Device } from '../types';
 
@@ -73,7 +72,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         name: 'My Business',
         owner_name: mockUser.full_name,
         address: '123 Main St, Anytown',
-        phone: '123-456-7890',
+        phone: '+911234567890',
         gstin: '',
         tagline: 'Quality you can trust',
         default_gst: 18,
@@ -116,7 +115,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const updateFirm = (updatedFirmDetails: Partial<Firm>) => {
     if (firm) {
-        const newFirm = { ...firm, ...updatedFirmDetails };
+        const detailsToSave = { ...updatedFirmDetails };
+        if (detailsToSave.phone && !detailsToSave.phone.startsWith('+91')) {
+            detailsToSave.phone = `+91${detailsToSave.phone}`;
+        }
+        const newFirm = { ...firm, ...detailsToSave };
         setFirm(newFirm);
         if (updatedFirmDetails.owner_name && user) {
             setUser(prevUser => ({...prevUser!, full_name: updatedFirmDetails.owner_name!}));

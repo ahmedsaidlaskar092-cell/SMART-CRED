@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
@@ -10,22 +9,26 @@ const ReportsScreen: React.FC = () => {
     const navigate = useNavigate();
     const { sales, purchases, customers, products, getProductById, getCustomerById } = useData();
 
+    // FIX: Updated handleExportSales to correctly process sales with multiple items.
+    // A sale can contain multiple products, so we use flatMap to create a CSV row for each item sold.
     const handleExportSales = () => {
-        const dataToExport = sales.map(s => {
+        const dataToExport = sales.flatMap(s => {
             const customer = s.customer_id ? getCustomerById(s.customer_id) : null;
-            const product = getProductById(s.product_id);
-            return {
-                bill_no: s.bill_no,
-                date: new Date(s.date_time).toLocaleDateString(),
-                customer_name: customer ? customer.name : 'N/A',
-                product_name: product ? product.name : 'N/A',
-                quantity: s.qty,
-                price_ex_gst: s.sell_price,
-                gst_percent: s.sell_gst,
-                discount: s.discount,
-                total_amount: s.total_amount,
-                payment_methods: s.payments.map(p => `${p.method}: ${p.amount}`).join(' | ')
-            };
+            return s.items.map(item => {
+                const product = getProductById(item.product_id);
+                return {
+                    bill_no: s.bill_no,
+                    date: new Date(s.date_time).toLocaleDateString(),
+                    customer_name: customer ? customer.name : 'N/A',
+                    product_name: product ? product.name : 'N/A',
+                    quantity: item.qty,
+                    price_ex_gst: item.sell_price,
+                    gst_percent: item.sell_gst,
+                    discount: s.discount,
+                    total_amount: s.total_amount,
+                    payment_methods: s.payments.map(p => `${p.method}: ${p.amount}`).join(' | ')
+                };
+            });
         });
         exportToCsv('sales_export.csv', dataToExport);
     };

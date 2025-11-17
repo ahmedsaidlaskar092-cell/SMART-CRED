@@ -1,10 +1,9 @@
-
 import { Customer, Product, Sale } from '../types';
 
 export const mockCustomers: Customer[] = [
-  { id: 1, firm_id: 1, name: 'Rohan Sharma', phone: '9876543210', address: '12B, Karol Bagh, Delhi', outstanding: 1250.50, totalPaid: 5000 },
-  { id: 2, firm_id: 1, name: 'Priya Patel', phone: '8765432109', address: '45, MG Road, Mumbai', outstanding: 0, totalPaid: 8500 },
-  { id: 3, firm_id: 1, name: 'Amit Singh', phone: '7654321098', address: 'A-1 Sector 18, Noida', outstanding: 350.00, totalPaid: 1200 },
+  { id: 1, firm_id: 1, name: 'Rohan Sharma', phone: '+919876543210', address: '12B, Karol Bagh, Delhi', outstanding: 1250.50, totalPaid: 5000 },
+  { id: 2, firm_id: 1, name: 'Priya Patel', phone: '+918765432109', address: '45, MG Road, Mumbai', outstanding: 0, totalPaid: 8500 },
+  { id: 3, firm_id: 1, name: 'Amit Singh', phone: '+917654321098', address: 'A-1 Sector 18, Noida', outstanding: 350.00, totalPaid: 1200 },
 ];
 
 export const mockProducts: Product[] = [
@@ -23,11 +22,9 @@ export const mockSales: Sale[] = [
     firm_id: 1,
     bill_no: 'INV-1001',
     customer_id: 1,
-    product_id: 101,
-    qty: 2,
-    sell_price: 65,
-    buy_price_at_sale: 60,
-    sell_gst: 0,
+    items: [
+        { product_id: 101, qty: 2, sell_price: 65, sell_gst: 0, buy_price_at_sale: 60 }
+    ],
     discount: 0,
     total_amount: 130,
     payments: [{ method: 'UPI', amount: 130 }],
@@ -38,11 +35,9 @@ export const mockSales: Sale[] = [
     firm_id: 1,
     bill_no: 'INV-1002',
     customer_id: 2,
-    product_id: 103,
-    qty: 10,
-    sell_price: 10,
-    buy_price_at_sale: 8,
-    sell_gst: 5,
+    items: [
+        { product_id: 103, qty: 10, sell_price: 10, sell_gst: 5, buy_price_at_sale: 8 }
+    ],
     discount: 5,
     total_amount: 100,
     payments: [{ method: 'Cash', amount: 100 }],
@@ -52,14 +47,13 @@ export const mockSales: Sale[] = [
     id: 1003,
     firm_id: 1,
     bill_no: 'INV-1003',
-    product_id: 105,
-    qty: 5,
-    sell_price: 14,
-    buy_price_at_sale: 10,
-    sell_gst: 12,
+    items: [
+      { product_id: 105, qty: 5, sell_price: 14, sell_gst: 12, buy_price_at_sale: 10 },
+      { product_id: 102, qty: 1, sell_price: 40, sell_gst: 0, buy_price_at_sale: 35 }
+    ],
     discount: 0,
-    total_amount: 78.4,
-    payments: [{ method: 'Card', amount: 78.4 }],
+    total_amount: 118.4,
+    payments: [{ method: 'Card', amount: 118.4 }],
     date_time: new Date().toISOString(),
   },
 ];

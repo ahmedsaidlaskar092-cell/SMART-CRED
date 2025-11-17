@@ -8,7 +8,8 @@ import { ArrowLeft, Download, Upload } from 'lucide-react';
 
 const BackupScreen: React.FC = () => {
   const navigate = useNavigate();
-  const { customers, products, sales, purchases, creditEntries, restoreData } = useData();
+  // FIX: Replaced `creditEntries` with `paymentsReceived` to match the DataContext.
+  const { customers, products, sales, purchases, paymentsReceived, restoreData } = useData();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
@@ -18,7 +19,7 @@ const BackupScreen: React.FC = () => {
       products,
       sales,
       purchases,
-      creditEntries,
+      paymentsReceived,
       exportDate: new Date().toISOString(),
     };
     

@@ -23,7 +23,6 @@ import AddProductScreen from './screens/AddProductScreen';
 import EditProductScreen from './screens/EditProductScreen';
 import BulkAddProductScreen from './screens/BulkAddProductScreen';
 import CustomerLedgerScreen from './screens/CustomerLedgerScreen';
-import AddCreditScreen from './screens/AddCreditScreen';
 import AddCustomerScreen from './screens/AddCustomerScreen';
 import BillPreviewScreen from './screens/BillPreviewScreen';
 import FirmSettingsScreen from './screens/FirmSettingsScreen';
@@ -36,6 +35,8 @@ import Sidebar from './components/layout/Sidebar';
 import BottomNav from './components/layout/BottomNav';
 import LowStockScreen from './screens/LowStockScreen';
 import MockDataScreen from './screens/settings/MockDataScreen';
+import CreditScreen from './screens/CreditScreen';
+import AddPaymentScreen from './screens/AddPaymentScreen';
 
 
 const App: React.FC = () => {
@@ -101,7 +102,8 @@ const AppContent: React.FC = () => {
                                 <Route path="/customers" element={<CustomersScreen />} />
                                 <Route path="/add-customer" element={<AddCustomerScreen />} />
                                 <Route path="/customer/:id" element={<CustomerLedgerScreen />} />
-                                <Route path="/add-credit" element={<AddCreditScreen />} />
+                                <Route path="/customer/:id/add-payment" element={<AddPaymentScreen />} />
+                                <Route path="/credit" element={<CreditScreen />} />
                                 <Route path="/products" element={<ProductsScreen />} />
                                 <Route path="/add-product" element={<AddProductScreen />} />
                                 <Route path="/product/edit/:id" element={<EditProductScreen />} />
@@ -119,8 +121,6 @@ const AppContent: React.FC = () => {
                                 <Route path="/settings/backup" element={<BackupScreen />} />
                                 <Route path="/settings/mock-data" element={<MockDataScreen />} />
                                 <Route path="/settings/devices" element={<DeviceManagerScreen />} />
-                                {/* Fallback route for users who might have bookmarked the firm setup */}
-                                <Route path="/firm-setup" element={<FirmSettingsScreen />} /> 
                                 <Route path="*" element={<Navigate to="/" />} />
                             </Routes>
                         </main>

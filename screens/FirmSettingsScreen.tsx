@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,6 +15,13 @@ const FirmSettingsScreen: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFirmDetails({ ...firmDetails, [e.target.name]: e.target.value });
+  };
+  
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (/^\d*$/.test(value)) {
+      setFirmDetails({ ...firmDetails, phone: value });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -64,7 +70,16 @@ const FirmSettingsScreen: React.FC = () => {
                     className="w-full bg-card border border-gray-600 text-text-primary rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                 />
               </div>
-              <Input label="Phone / WhatsApp" id="phone" name="phone" type="tel" value={firmDetails.phone || ''} onChange={handleChange} />
+              <Input 
+                label="Phone / WhatsApp" 
+                id="phone" 
+                name="phone" 
+                type="tel" 
+                prefix="+91"
+                maxLength={10}
+                value={firmDetails.phone?.replace('+91', '') || ''} 
+                onChange={handlePhoneChange} 
+              />
             </div>
             <div className="space-y-4 mt-4 md:mt-0">
               <Input label="GSTIN" id="gstin" name="gstin" type="text" value={firmDetails.gstin || ''} onChange={handleChange} />
