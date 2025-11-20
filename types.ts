@@ -108,3 +108,8 @@ export interface LedgerEntry {
     balance: number;
     originalEntry: Sale | PaymentReceived;
 }
+
+export interface BusinessInsight {
+    text: string;
+    lastUpdated: string;
+}

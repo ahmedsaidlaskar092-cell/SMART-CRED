@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
-import { Customer, Product, Sale, Purchase, SaleItem, PaymentReceived } from '../types';
+import { Customer, Product, Sale, Purchase, SaleItem, PaymentReceived, BusinessInsight } from '../types';
 import { mockCustomers, mockProducts, mockSales } from '../utils/mockData';
 import { GoogleGenAI } from "@google/genai";
 
@@ -34,6 +34,7 @@ interface DataContextType {
   sales: Sale[];
   purchases: Purchase[];
   paymentsReceived: PaymentReceived[];
+  businessInsight: BusinessInsight | null;
   getCustomerById: (id: number) => Customer | undefined;
   getProductById: (id: number) => Product | undefined;
   getSaleById: (id: number) => Sale | undefined;
@@ -52,6 +53,8 @@ interface DataContextType {
   loadMockData: () => void;
   clearAllData: () => void;
   generateAndAddRandomProducts: (businessType: string) => Promise<void>;
+  generateBusinessInsights: () => Promise<void>;
+  isGeneratingInsight: boolean;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -62,6 +65,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [sales, setSales] = useStickyState<Sale[]>([], 'data_sales');
   const [purchases, setPurchases] = useStickyState<Purchase[]>([], 'data_purchases');
   const [paymentsReceived, setPaymentsReceived] = useStickyState<PaymentReceived[]>([], 'data_paymentsReceived');
+  const [businessInsight, setBusinessInsight] = useStickyState<BusinessInsight | null>(null, 'data_insight');
+  const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
 
   const getCustomerById = useCallback((id: number) => customers.find(c => c.id === id), [customers]);
   const getProductById = useCallback((id: number) => products.find(p => p.id === id), [products]);
@@ -237,6 +242,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setSales([]);
     setPurchases([]);
     setPaymentsReceived([]);
+    setBusinessInsight(null);
   };
   
   const generateAndAddRandomProducts = async (businessType: string): Promise<void> => {
@@ -284,11 +290,69 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const generateBusinessInsights = async (): Promise<void> => {
+      if (!process.env.API_KEY) {
+          console.error("API Key is missing");
+          return;
+      }
+      setIsGeneratingInsight(true);
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+      // Aggregate Data
+      const totalSalesAllTime = sales.reduce((acc, s) => acc + s.total_amount, 0);
+      const totalCredit = customers.reduce((acc, c) => acc + c.outstanding, 0);
+      const lowStockCount = products.filter(p => p.stock <= 5).length;
+      
+      const today = new Date().toDateString();
+      const todaysSales = sales.filter(s => new Date(s.date_time).toDateString() === today).reduce((acc, s) => acc + s.total_amount, 0);
+      
+      // Top Selling Product Logic
+      const productSalesMap: {[key: number]: number} = {};
+      sales.forEach(sale => {
+          sale.items.forEach(item => {
+              productSalesMap[item.product_id] = (productSalesMap[item.product_id] || 0) + item.qty;
+          });
+      });
+      const topProductId = Object.keys(productSalesMap).reduce((a, b) => productSalesMap[parseInt(a)] > productSalesMap[parseInt(b)] ? a : b, "0");
+      const topProduct = getProductById(parseInt(topProductId));
+
+      const prompt = `
+        Act as a senior business consultant for a small business owner. Analyze this data and provide a concise, 3-4 sentence strategic insight summary.
+        Focus on cash flow, stock alerts, or sales opportunities. Be encouraging but professional. Use emojis.
+        
+        Data:
+        - Total Sales (All Time): ₹${totalSalesAllTime}
+        - Sales Today: ₹${todaysSales}
+        - Pending Credit (To Collect): ₹${totalCredit}
+        - Low Stock Items: ${lowStockCount}
+        - Top Selling Product: ${topProduct?.name || 'N/A'}
+      `;
+
+      try {
+          const response = await ai.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: prompt,
+          });
+          
+          const text = response.text;
+          if(text) {
+              setBusinessInsight({
+                  text: text.trim(),
+                  lastUpdated: new Date().toISOString()
+              });
+          }
+      } catch (error) {
+          console.error("Error generating insights:", error);
+      } finally {
+          setIsGeneratingInsight(false);
+      }
+  };
+
   const value = {
-    customers, products, sales, purchases, paymentsReceived,
+    customers, products, sales, purchases, paymentsReceived, businessInsight, isGeneratingInsight,
     getCustomerById, getProductById, getSaleById, getSalesByCustomerId, getPaymentsByCustomerId,
     addCustomer, addProduct, updateProduct, addBulkProducts, addSale, addPurchase, addPaymentReceived, deletePaymentReceived,
-    deleteSale, restoreData, loadMockData, clearAllData, generateAndAddRandomProducts,
+    deleteSale, restoreData, loadMockData, clearAllData, generateAndAddRandomProducts, generateBusinessInsights
   };
 
   return (
